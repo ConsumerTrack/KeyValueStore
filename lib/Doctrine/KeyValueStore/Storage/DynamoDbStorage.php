@@ -280,11 +280,11 @@ class DynamoDbStorage implements Storage
           self::TABLE_KEY           => $this->prepareKey($storageName, $key),
         ]);
 
+        $item = $item->get(self::TABLE_ITEM_KEY);
+
         if (! $item) {
             throw NotFoundException::notFoundByKey($key);
         }
-
-        $item = $item->get(self::TABLE_ITEM_KEY);
 
         return $this->marshaler->unmarshalItem($item);
     }
