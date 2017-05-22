@@ -100,16 +100,6 @@ class UnitOfWork
 
     public function createEntity($class, $id, $data)
     {
-        if (isset($data['php_class'])) {
-            if ($data['php_class'] !== $class->name && ! is_subclass_of($data['php_class'], $class->name)) {
-                throw new \RuntimeException(
-                    "Row is of class '" . $data['php_class'] . "' which is not a subtype of expected " . $class->name
-                );
-            }
-            $class = $this->cmf->getMetadataFor($data['php_class']);
-        }
-        unset($data['php_class']);
-
         $object = $this->tryGetById($class->name, $id);
         if ($object) {
             return $object;
@@ -137,7 +127,9 @@ class UnitOfWork
             }
         }
 
-        $id = current($id);
+        if (is_array($id)) {
+            $id = current($id);
+        }
         $idHash                                   = $this->idHandler->hash($id);
         $this->identityMap[$class->name][$idHash] = $object;
         $this->identifiers[$oid]                  = $id;
@@ -187,9 +179,21 @@ class UnitOfWork
     {
         $data = [];
 
+        if (!$object) {
+            return $data;
+        }
+
         foreach ($class->reflFields as $fieldName => $reflProperty) {
             if (! isset($class->fields[$fieldName]['id'])) {
-                $data[$fieldName] = $reflProperty->getValue($object);
+                if ($class->hasAssociation($fieldName)) {
+                    $embeddedMeta = $this->cmf->getMetadataFor($class->getAssociationTargetClass($fieldName));
+                    $data[$fieldName] = $this->getObjectSnapshot($embeddedMeta, $reflProperty->getValue($object));
+                    continue;
+                }
+
+                if (is_object($object)) {
+                    $data[$fieldName] = $reflProperty->getValue($object);
+                }
             }
         }
 
@@ -251,7 +255,6 @@ class UnitOfWork
                 $changeSet = $this->computeChangeSet($metadata, $object);
 
                 if ($changeSet) {
-                    $changeSet['php_class'] = $metadata->name;
                     $this->storageDriver->update($metadata->storageName, $this->identifiers[$hash], $changeSet);
 
                     if ($this->storageDriver->supportsPartialUpdates()) {
@@ -276,7 +279,6 @@ class UnitOfWork
             }
 
             $data              = $this->getObjectSnapshot($class, $object);
-            $data['php_class'] = $class->name;
 
             $oid    = spl_object_hash($object);
             $idHash = $this->idHandler->hash($id);
