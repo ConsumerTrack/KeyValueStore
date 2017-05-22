@@ -129,6 +129,7 @@ class UnitOfWork
             }
         }
 
+        $id = current($id);
         $idHash                                   = $this->idHandler->hash($id);
         $this->identityMap[$class->name][$idHash] = $object;
         $this->identifiers[$oid]                  = $id;

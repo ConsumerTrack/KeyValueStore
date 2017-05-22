@@ -22,15 +22,19 @@ namespace Doctrine\KeyValueStore\Storage;
 
 use Aws\DynamoDb\DynamoDbClient;
 use Aws\DynamoDb\Marshaler;
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\KeyValueStore\InvalidArgumentException;
 use Doctrine\KeyValueStore\NotFoundException;
+use Doctrine\KeyValueStore\Query\Expr;
+use Doctrine\KeyValueStore\Query\QueryBuilder;
+use Doctrine\KeyValueStore\Query\QueryBuilderStorage;
 
 /**
  * DyanmoDb storage
  *
  * @author Stan Lemon <stosh1985@gmail.com>
  */
-class DynamoDbStorage implements Storage
+class DynamoDbStorage implements Storage, QueryBuilderStorage
 {
     /**
      * The key that DynamoDb uses to indicate the name of the table.
@@ -319,4 +323,83 @@ class DynamoDbStorage implements Storage
         }
         return array_filter($data, $callback);
     }
+
+    public function executeQueryBuilder(QueryBuilder $qb, $storageName, $key, \Closure $hydrateRow = null) 
+    {
+        $condition = $qb->getCondition();
+
+        $parameters = $qb->getParameters();
+
+        list($expression, $keys) = $this->parse($parameters, $storageName, $condition);
+
+        $params = [];
+        foreach ($parameters as $param) {
+            $value= $this->marshaler->marshalItem($this->prepareData([$param->GetValue()]))[0];
+            $params[sprintf(':%s', $param->getName())] = $value;
+        }
+
+        $results = $this->client->scan(array(
+            'TableName' => $storageName,
+            'FilterExpression' => $expression,
+            'ExpressionAttributeNames'=> $keys,
+            'ExpressionAttributeValues' => $params
+        ));
+        
+        if (!$hydrateRow) {
+            return $results;
+        }
+
+        $entityList = [];
+
+        foreach ($results['Items'] as $item) {
+            $data = $this->marshaler->unmarshalItem($item);
+            $entityList[] = $hydrateRow($data);
+        }
+
+        return $entityList;
+     }
+
+     private function parse(ArrayCollection $parameters, $storageName, $expression)
+     {
+         $compiled = '';
+         $keys = [];
+
+         if ($expression instanceof Expr\Composite) {
+            $expressions = [];
+            $count = 0;
+            foreach ($expression->getParts() as $part) {
+                list($inner, $innerKeys) = $this->parse($parameters, $storageName, $part);
+                $expressions[] = sprintf('(%s)', $inner);
+                $keys = array_merge($keys, $innerKeys);
+            }
+            $compiled .= sprintf('%s',implode($expression->getSeparator(), $expressions));
+         } elseif ($expression instanceof Expr\Comparison) {
+            $count = count($keys);
+            $key = '#k'.$count;
+            $keys[$key] = $expression->getLeftExpr();
+            $preparedKey = $this->prepareKey($storageName, $key);
+            $compiled .= sprintf(
+                '%s %s %s',
+                $key,  
+                $expression->getOperator(),
+                $expression->getRightExpr()
+            );
+         } elseif ($expression instanceof Expr\Func) {
+            $arguments = '';
+            foreach ($expression->getArguments() as $argument) {
+                if (is_array($argument)) {
+                    $argument = '['.implode(',', $argument).']';
+                }
+                $arguments .= (!$arguments ? $argument : ', '.$argument);
+            }
+
+            $compiled .= sprintf(
+                '%s(%s)',
+                $expression->getName(),  
+                $arguments
+            );
+         }
+
+         return [$compiled, $keys];
+     }
 }

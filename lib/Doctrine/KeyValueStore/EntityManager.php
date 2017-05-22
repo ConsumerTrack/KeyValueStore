@@ -21,6 +21,7 @@
 namespace Doctrine\KeyValueStore;
 
 use Doctrine\KeyValueStore\Mapping\ClassMetadataFactory;
+use Doctrine\KeyValueStore\Query\QueryBuilder;
 use Doctrine\KeyValueStore\Query\RangeQuery;
 use Doctrine\KeyValueStore\Storage\Storage;
 
@@ -84,6 +85,20 @@ class EntityManager
     public function createRangeQuery($className, $partitionKey)
     {
         return new RangeQuery($this, $className, $partitionKey);
+    }
+
+    /**
+     * Create a query builder isntance for storage engines that support query builders
+     *
+     * Some vendors don't support queries at all.
+     *
+     * @param string $className
+     *
+     * @return \Doctrine\KeyValueStore\Query\QueryBuilder
+     */
+    public function createQueryBuilder($className)
+    {
+        return new QueryBuilder($this, $className);
     }
 
     /**
