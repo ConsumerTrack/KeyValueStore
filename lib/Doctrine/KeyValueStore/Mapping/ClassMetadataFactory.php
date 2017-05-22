@@ -63,7 +63,7 @@ class ClassMetadataFactory extends AbstractClassMetadataFactory
             $class->storageName = end($parts);
         }
 
-        if (! $class->identifier) {
+        if (! $class->identifier && ! $class->embeddable) {
             throw new \InvalidArgumentException('Class ' . $class->name . ' has no identifier.');
         }
     }

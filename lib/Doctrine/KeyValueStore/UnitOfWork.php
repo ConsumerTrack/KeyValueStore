@@ -123,6 +123,14 @@ class UnitOfWork
 
         foreach ($data as $property => $value) {
             if (isset($class->reflFields[$property])) {
+                if ($class->hasAssociation($property)) {
+                    $associationClass = $class->getAssociationTargetClass($property);
+                    $associationMeta = $this->cmf->getMetadataFor($associationClass);
+                    $class->reflFields[$property]->setValue(
+                        $object,
+                        $this->createEmbeddedEntity($associationMeta, $value)
+                    );
+                }
                 $class->reflFields[$property]->setValue($object, $value);
             } else {
                 $object->$property = $value;
@@ -136,6 +144,26 @@ class UnitOfWork
 
         return $object;
     }
+
+    public function createEmbeddedEntity($class, $data)
+    {
+        $object = $class->newInstance();
+
+        $oid                      = spl_object_hash($object);
+        $this->originalData[$oid] = $data;
+        $data                     = $this->idConverter->unserialize($class, $data);
+
+        foreach ($data as $property => $value) {
+            if (isset($class->reflFields[$property])) {
+                $class->reflFields[$property]->setValue($object, $value);
+            } else {
+                $object->$property = $value;
+            }
+        }
+
+        return $object;
+    }
+
 
     private function computeChangeSet($class, $object)
     {
