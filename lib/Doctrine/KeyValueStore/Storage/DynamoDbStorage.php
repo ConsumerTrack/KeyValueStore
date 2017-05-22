@@ -338,6 +338,7 @@ class DynamoDbStorage implements Storage, QueryBuilderStorage
             $params[sprintf(':%s', $param->getName())] = $value;
         }
 
+        $expression = str_replace(array('((', '))'), array('(', ')'), $expression);
         $results = $this->client->scan(array(
             'TableName' => $storageName,
             'FilterExpression' => $expression,
@@ -369,10 +370,10 @@ class DynamoDbStorage implements Storage, QueryBuilderStorage
             $count = 0;
             foreach ($expression->getParts() as $part) {
                 list($inner, $innerKeys) = $this->parse($parameters, $storageName, $part);
-                $expressions[] = sprintf('(%s)', $inner);
+                $expressions[] = sprintf('%s', $inner);
                 $keys = array_merge($keys, $innerKeys);
             }
-            $compiled .= sprintf('%s',implode($expression->getSeparator(), $expressions));
+            $compiled .= sprintf('(%s)',implode($expression->getSeparator(), $expressions));
          } elseif ($expression instanceof Expr\Comparison) {
             $count = count($keys);
             $key = '#k'.$count;

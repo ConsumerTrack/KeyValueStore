@@ -188,6 +188,40 @@ class QueryBuilder
     }
 
     /**
+     * Adds one or more restrictions to the query results, forming a logical
+     * disjunction with any previously specified restrictions.
+     *
+     * <code>
+     *     $qb = $em->createQueryBuilder()
+     *         ->select('u')
+     *         ->from('User', 'u')
+     *         ->where('u.id = 1')
+     *         ->orWhere('u.id = 2');
+     * </code>
+     *
+     * @param mixed $where The WHERE statement.
+     *
+     * @return QueryBuilder
+     *
+     * @see where()
+     */
+    public function orWhere()
+    {
+        $args  = func_get_args();
+        $where = $this->condition;
+
+        if ($where instanceof Expr\Orx) {
+            $where->addMultiple($args);
+        } else {
+            array_unshift($args, $where);
+            $where = new Expr\Orx($args);
+        }
+
+        $this->condition = $where;
+        return $this;
+    }
+
+    /**
      *
      * @return Query\Expr
      */
