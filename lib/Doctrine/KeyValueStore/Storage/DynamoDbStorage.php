@@ -324,8 +324,9 @@ class DynamoDbStorage implements Storage, QueryBuilderStorage
         return array_filter($data, $callback);
     }
 
-    public function executeQueryBuilder(QueryBuilder $qb, $storageName, $key, \Closure $hydrateRow = null) 
+    public function executeQueryBuilder(QueryBuilder $qb, $storageName, $key, \Closure $hydrateRow = null)
     {
+
         $condition = $qb->getCondition();
 
         $parameters = $qb->getParameters();
@@ -339,16 +340,19 @@ class DynamoDbStorage implements Storage, QueryBuilderStorage
         }
 
         $expression = str_replace(array('((', '))'), array('(', ')'), $expression);
-        $results = $this->client->scan(array(
+
+        $scanParams = [
             'TableName' => $storageName,
-            'FilterExpression' => $expression,
-            'ExpressionAttributeNames'=> $keys,
-            'ExpressionAttributeValues' => $params
-        ));
-        
-        if (!$hydrateRow) {
-            return $results;
+        ];
+
+        if ($expression) {
+            // Add filter expression
+            $scanParams['FilterExpression'] = $expression;
+            $scanParams['ExpressionAttributeNames'] = $keys;
+            $scanParams['ExpressionAttributeValues'] = $params;
         }
+
+        $results = $this->client->scan($scanParams);
 
         $entityList = [];
 

@@ -108,7 +108,7 @@ class QueryBuilder
 
             foreach ($class->identifier as $id) {
                 //TODO check if row value is not set
-                $key[$id] = $row[$id];
+                $key = $row[$id];
             }
 
             return $uow->createEntity($class, $key, $row);
