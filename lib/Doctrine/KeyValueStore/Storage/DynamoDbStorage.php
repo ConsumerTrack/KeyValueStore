@@ -353,6 +353,10 @@ class DynamoDbStorage implements Storage, QueryBuilderStorage
         }
 
         $results = $this->client->scan($scanParams);
+        
+        if (!$hydrateRow) {
+            return $results;
+        }
 
         $entityList = [];
 

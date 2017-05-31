@@ -58,6 +58,11 @@ class QueryBuilder
      */
     private $parameters;
 
+    /**
+     * @var callable
+     **/
+    private $hydrator;
+
     public function __construct(EntityManager $em, $className)
     {
         $this->em           = $em;
@@ -86,6 +91,17 @@ class QueryBuilder
     }
 
     /**
+     * Set the hydrator callable
+     *
+     * @param callable $hydrator
+     **/
+    public function setHydrator($hydrator)
+    {
+        $this->hydrator = $hydrator;
+        return $this;
+    }
+
+    /**
      * Execute query and return a result iterator.
      *
      * @return ResultIterator
@@ -100,10 +116,11 @@ class QueryBuilder
             );
         }
 
-        $uow   = $this->em->getUnitOfWork();
-        $class = $this->em->getClassMetadata($this->className);
+        $uow      = $this->em->getUnitOfWork();
+        $class    = $this->em->getClassMetadata($this->className);
+        $hydrator = $this->hydrator;
 
-        $rowHydration = function ($row) use ($uow, $class) {
+        $rowHydration = function ($row) use ($uow, $class, $hydrator) {
             $key = [];
 
             foreach ($class->identifier as $id) {
@@ -111,7 +128,13 @@ class QueryBuilder
                 $key = $row[$id];
             }
 
-            return $uow->createEntity($class, $key, $row);
+            $hydratedObject = $uow->createEntity($class, $key, $row);
+
+            if ($hydrator) {
+                $hydratedObject = call_user_func($hydrator, $hydratedObject);
+            }
+
+            return $hydratedObject;
         };
 
         return $storage->executeQueryBuilder($this, $class->storageName, $class->identifier, $rowHydration);
