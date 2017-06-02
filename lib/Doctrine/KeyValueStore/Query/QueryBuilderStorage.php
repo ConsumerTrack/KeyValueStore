@@ -18,21 +18,24 @@
  * <http://www.doctrine-project.org>.
  */
 
-namespace Doctrine\KeyValueStore\Mapping\Annotations;
+namespace Doctrine\KeyValueStore\Query;
 
 /**
- * @Annotation
- * @Target("CLASS")
+ * Interface used by storages that support filter-based queries 
+ *
+ * @author Derek Woods <derekrw@gmail.com>
  */
-final class Entity
+interface QueryBuilderStorage
 {
     /**
-     * @var string
+     * Execute the filter query and return a ResultIterator
+     *
+     * @param QueryBuilder $qb
+     * @param string     $storageName
+     * @param array      $key
+     * @param Closure    $hydrateRow
+     *
+     * @return ResultIterator
      */
-    public $storageName;
-
-    /**
-     * @var string
-     */
-    public $prefix;
+    public function executeQueryBuilder(QueryBuilder $qb, $storageName, $key, \Closure $hydrateRow = null);
 }

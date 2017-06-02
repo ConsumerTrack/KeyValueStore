@@ -1,5 +1,4 @@
 <?php
-
 /*
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -18,21 +17,47 @@
  * <http://www.doctrine-project.org>.
  */
 
-namespace Doctrine\KeyValueStore\Mapping\Annotations;
+namespace Doctrine\KeyValueStore\Query\Expr;
 
 /**
- * @Annotation
- * @Target("CLASS")
+ * Expression class for building DQL and parts.
+ *
+ * @link    www.doctrine-project.org
+ * @since   2.0
+ * @author  Guilherme Blanco <guilhermeblanco@hotmail.com>
+ * @author  Jonathan Wage <jonwage@gmail.com>
+ * @author  Roman Borschel <roman@code-factory.org>
  */
-final class Entity
+class Andx extends Composite
 {
     /**
      * @var string
      */
-    public $storageName;
+    protected $separator = ' AND ';
 
     /**
-     * @var string
+     * @var array
      */
-    public $prefix;
+    protected $allowedClasses = array(
+        'Doctrine\KeyValueStore\Query\Expr\Comparison',
+        'Doctrine\KeyValueStore\Query\Expr\Func',
+        'Doctrine\KeyValueStore\Query\Expr\Orx',
+        'Doctrine\KeyValueStore\Query\Expr\Andx',
+    );
+
+    /**
+     * @return array
+     */
+    public function getParts()
+    {
+        return $this->parts;
+    }
+
+    /**
+     * @return array
+     */
+    public function getSeparator()
+    {
+        return $this->separator;
+    }
 }

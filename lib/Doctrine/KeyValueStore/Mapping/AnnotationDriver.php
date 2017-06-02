@@ -23,6 +23,7 @@ namespace Doctrine\KeyValueStore\Mapping;
 use Doctrine\Common\Annotations\AnnotationReader;
 use Doctrine\Common\Persistence\Mapping\ClassMetadata;
 use Doctrine\Common\Persistence\Mapping\Driver\MappingDriver;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class AnnotationDriver implements MappingDriver
 {
@@ -34,13 +35,22 @@ class AnnotationDriver implements MappingDriver
     private $reader;
 
     /**
+     * Symfony container
+     *
+     * @var ContainerInterface
+     **/
+    private $container;
+
+    /**
      * Constructor with required dependencies.
      *
      * @param $reader AnnotationReader Doctrine common annotations reader.
+     * @param $container ContainerInterface Symfony container.
      */
-    public function __construct(AnnotationReader $reader)
+    public function __construct(AnnotationReader $reader, ContainerInterface $container)
     {
         $this->reader = $reader;
+        $this->container = $container;
     }
 
     /**
@@ -58,11 +68,30 @@ class AnnotationDriver implements MappingDriver
             $class = new \ReflectionClass($metadata->name);
         }
 
+        $embeddableAnnot = $this->reader->getClassAnnotation($class, 'Doctrine\KeyValueStore\Mapping\Annotations\Embeddable');
+
         $entityAnnot = $this->reader->getClassAnnotation($class, 'Doctrine\KeyValueStore\Mapping\Annotations\Entity');
-        if (! $entityAnnot) {
+        if (! $entityAnnot && ! $embeddableAnnot) {
             throw new \InvalidArgumentException($metadata->name . ' is not a valid key-value-store entity.');
         }
-        $metadata->storageName = $entityAnnot->storageName;
+
+        if ($embeddableAnnot) {
+            $metadata->embeddable = true;
+            return;
+        }
+
+        if (preg_match('#^%(.+)%$#', $entityAnnot->prefix, $matches)) {
+            if (!$this->container->hasParameter($matches[1])) {
+                throw new \Exception(sprintf(
+                    'Invalid prefix argument. The parameter %s is not defined',
+                    $matches[1]
+                ));
+            }
+
+            $entityAnnot->prefix = $this->container->getParameter($matches[1]);
+        }
+
+        $metadata->storageName = $entityAnnot->prefix.$entityAnnot->storageName;
 
         // Evaluate annotations on properties/fields
         foreach ($class->getProperties() as $property) {
@@ -74,12 +103,20 @@ class AnnotationDriver implements MappingDriver
                 $property,
                 'Doctrine\KeyValueStore\Mapping\Annotations\Transient'
             );
+            $embeddedAnnot = $this->reader->getPropertyAnnotation(
+                $property,
+                'Doctrine\KeyValueStore\Mapping\Annotations\Embedded'
+            );
             if ($idAnnot) {
                 $metadata->mapIdentifier($property->getName());
             } elseif ($transientAnnot) {
                 $metadata->skipTransientField($property->getName());
             } else {
-                $metadata->mapField(['fieldName' => $property->getName()]);
+                $data = ['fieldName' => $property->getName()];
+                if ($embeddedAnnot) {
+                    $data['embedded'] = $embeddedAnnot->target;
+                }
+                $metadata->mapField($data);
             }
         }
     }

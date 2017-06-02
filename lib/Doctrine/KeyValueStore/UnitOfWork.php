@@ -100,21 +100,46 @@ class UnitOfWork
 
     public function createEntity($class, $id, $data)
     {
-        if (isset($data['php_class'])) {
-            if ($data['php_class'] !== $class->name && ! is_subclass_of($data['php_class'], $class->name)) {
-                throw new \RuntimeException(
-                    "Row is of class '" . $data['php_class'] . "' which is not a subtype of expected " . $class->name
-                );
-            }
-            $class = $this->cmf->getMetadataFor($data['php_class']);
-        }
-        unset($data['php_class']);
-
         $object = $this->tryGetById($class->name, $id);
         if ($object) {
             return $object;
         }
 
+        $object = $class->newInstance();
+
+        $oid                      = spl_object_hash($object);
+        $this->originalData[$oid] = $data;
+        $data                     = $this->idConverter->unserialize($class, $data);
+
+        foreach ($data as $property => $value) {
+            if (isset($class->reflFields[$property])) {
+                if ($class->hasAssociation($property)) {
+                    $associationClass = $class->getAssociationTargetClass($property);
+                    $associationMeta = $this->cmf->getMetadataFor($associationClass);
+                    $class->reflFields[$property]->setValue(
+                        $object,
+                        $this->createEmbeddedEntity($associationMeta, $value)
+                    );
+                    continue;
+                }
+                $class->reflFields[$property]->setValue($object, $value);
+            } else {
+                $object->$property = $value;
+            }
+        }
+
+        if (is_array($id)) {
+            $id = current($id);
+        }
+        $idHash                                   = $this->idHandler->hash($id);
+        $this->identityMap[$class->name][$idHash] = $object;
+        $this->identifiers[$oid]                  = $id;
+
+        return $object;
+    }
+
+    public function createEmbeddedEntity($class, $data)
+    {
         $object = $class->newInstance();
 
         $oid                      = spl_object_hash($object);
@@ -129,12 +154,9 @@ class UnitOfWork
             }
         }
 
-        $idHash                                   = $this->idHandler->hash($id);
-        $this->identityMap[$class->name][$idHash] = $object;
-        $this->identifiers[$oid]                  = $id;
-
         return $object;
     }
+
 
     private function computeChangeSet($class, $object)
     {
@@ -158,9 +180,21 @@ class UnitOfWork
     {
         $data = [];
 
+        if (!$object) {
+            return $data;
+        }
+
         foreach ($class->reflFields as $fieldName => $reflProperty) {
             if (! isset($class->fields[$fieldName]['id'])) {
-                $data[$fieldName] = $reflProperty->getValue($object);
+                if ($class->hasAssociation($fieldName)) {
+                    $embeddedMeta = $this->cmf->getMetadataFor($class->getAssociationTargetClass($fieldName));
+                    $data[$fieldName] = $this->getObjectSnapshot($embeddedMeta, $reflProperty->getValue($object));
+                    continue;
+                }
+
+                if (is_object($object)) {
+                    $data[$fieldName] = $reflProperty->getValue($object);
+                }
             }
         }
 
@@ -222,7 +256,6 @@ class UnitOfWork
                 $changeSet = $this->computeChangeSet($metadata, $object);
 
                 if ($changeSet) {
-                    $changeSet['php_class'] = $metadata->name;
                     $this->storageDriver->update($metadata->storageName, $this->identifiers[$hash], $changeSet);
 
                     if ($this->storageDriver->supportsPartialUpdates()) {
@@ -247,7 +280,6 @@ class UnitOfWork
             }
 
             $data              = $this->getObjectSnapshot($class, $object);
-            $data['php_class'] = $class->name;
 
             $oid    = spl_object_hash($object);
             $idHash = $this->idHandler->hash($id);

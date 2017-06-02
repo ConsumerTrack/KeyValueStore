@@ -160,7 +160,8 @@ class ClassMetadata implements BaseClassMetadata
      */
     public function hasAssociation($fieldName)
     {
-        return false;
+        return isset($this->fields[$fieldName])
+            && !empty($this->fields[$fieldName]['embedded']);
     }
 
     /**
@@ -243,6 +244,7 @@ class ClassMetadata implements BaseClassMetadata
      */
     public function getAssociationTargetClass($assocName)
     {
+        return $this->fields[$assocName]['embedded'];
     }
 
     /**

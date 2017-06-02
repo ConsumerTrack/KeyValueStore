@@ -18,21 +18,17 @@
  * <http://www.doctrine-project.org>.
  */
 
-namespace Doctrine\KeyValueStore\Mapping\Annotations;
+namespace Doctrine\KeyValueStore\Query;
+
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\KeyValueStore\EntityManager;
 
 /**
- * @Annotation
- * @Target("CLASS")
+ * Query Object.  
  */
-final class Entity
+class Query
 {
-    /**
-     * @var string
-     */
-    public $storageName;
-
-    /**
-     * @var string
-     */
-    public $prefix;
+    public function getResult()
+    {
+    }
 }

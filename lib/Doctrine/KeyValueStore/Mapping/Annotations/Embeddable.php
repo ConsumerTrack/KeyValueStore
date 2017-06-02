@@ -23,16 +23,11 @@ namespace Doctrine\KeyValueStore\Mapping\Annotations;
 /**
  * @Annotation
  * @Target("CLASS")
+ * Usage:
+ *     /**
+ *      * @KeyValue\Embeddable
+ *     class Test
  */
-final class Entity
+final class Embeddable
 {
-    /**
-     * @var string
-     */
-    public $storageName;
-
-    /**
-     * @var string
-     */
-    public $prefix;
 }
