@@ -324,6 +324,17 @@ class DynamoDbStorage implements Storage, QueryBuilderStorage
         return array_filter($data, $callback);
     }
 
+    /**
+     * Take a QueryBuilder setup and executed it against Dynamo in the form of a Scan operation
+     *
+     * @param QueryBuilder $qb    The QueryBuilder object
+     * @param string $storageName The storage name of the Dynamo table
+     * @param string $key         The Dyanmo partition key
+     * @param Closure $hydrateRow An optional callback to hydrate a result (for example to query
+     *                            MySQL DB if you have an inter-db reference
+     *
+     * @return array
+     */
     public function executeQueryBuilder(QueryBuilder $qb, $storageName, $key, \Closure $hydrateRow = null)
     {
 
