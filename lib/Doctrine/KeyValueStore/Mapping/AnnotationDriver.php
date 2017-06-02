@@ -58,12 +58,19 @@ class AnnotationDriver implements MappingDriver
             $class = new \ReflectionClass($metadata->name);
         }
 
+        $embeddableAnnot = $this->reader->getClassAnnotation($class, 'Doctrine\KeyValueStore\Mapping\Annotations\Embeddable');
+
         $entityAnnot = $this->reader->getClassAnnotation($class, 'Doctrine\KeyValueStore\Mapping\Annotations\Entity');
-        if (! $entityAnnot) {
+        if (! $entityAnnot && ! $embeddableAnnot) {
             throw new \InvalidArgumentException($metadata->name . ' is not a valid key-value-store entity.');
         }
-        $metadata->storageName = $entityAnnot->storageName;
 
+        if ($embeddableAnnot) {
+            $metadata->embeddable = true;
+            return;
+        }
+
+        $metadata->storageName = $entityAnnot->storageName;
         // Evaluate annotations on properties/fields
         foreach ($class->getProperties() as $property) {
             $idAnnot        = $this->reader->getPropertyAnnotation(
@@ -74,12 +81,20 @@ class AnnotationDriver implements MappingDriver
                 $property,
                 'Doctrine\KeyValueStore\Mapping\Annotations\Transient'
             );
+            $embeddedAnnot = $this->reader->getPropertyAnnotation(
+                $property,
+                'Doctrine\KeyValueStore\Mapping\Annotations\Embedded'
+            );
             if ($idAnnot) {
                 $metadata->mapIdentifier($property->getName());
             } elseif ($transientAnnot) {
                 $metadata->skipTransientField($property->getName());
             } else {
-                $metadata->mapField(['fieldName' => $property->getName()]);
+                $data = ['fieldName' => $property->getName()];
+                if ($embeddedAnnot) {
+                    $data['embedded'] = $embeddedAnnot->target;
+                }
+                $metadata->mapField($data);
             }
         }
     }
