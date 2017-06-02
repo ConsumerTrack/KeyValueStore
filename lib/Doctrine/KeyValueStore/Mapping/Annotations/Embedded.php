@@ -23,6 +23,9 @@ namespace Doctrine\KeyValueStore\Mapping\Annotations;
 /**
  * @Annotation
  * @Target("PROPERTY")
+ * Usage:
+ *     @KeyValue\Embedded(target="Document\Test") 
+ *     private $test;
  */
 final class Embedded
 {

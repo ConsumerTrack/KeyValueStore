@@ -120,6 +120,7 @@ class UnitOfWork
                         $object,
                         $this->createEmbeddedEntity($associationMeta, $value)
                     );
+                    continue;
                 }
                 $class->reflFields[$property]->setValue($object, $value);
             } else {

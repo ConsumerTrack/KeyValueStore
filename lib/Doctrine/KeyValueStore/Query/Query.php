@@ -18,16 +18,17 @@
  * <http://www.doctrine-project.org>.
  */
 
-namespace Doctrine\KeyValueStore\Mapping\Annotations;
+namespace Doctrine\KeyValueStore\Query;
+
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\KeyValueStore\EntityManager;
 
 /**
- * @Annotation
- * @Target("CLASS")
- * Usage:
- *     /**
- *      * @KeyValue\Embeddable
- *     class Test
+ * Query Object.  
  */
-final class Embeddable
+class Query
 {
+    public function getResult()
+    {
+    }
 }
