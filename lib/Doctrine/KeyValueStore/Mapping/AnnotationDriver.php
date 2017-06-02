@@ -23,6 +23,7 @@ namespace Doctrine\KeyValueStore\Mapping;
 use Doctrine\Common\Annotations\AnnotationReader;
 use Doctrine\Common\Persistence\Mapping\ClassMetadata;
 use Doctrine\Common\Persistence\Mapping\Driver\MappingDriver;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 
 class AnnotationDriver implements MappingDriver
 {
@@ -34,13 +35,22 @@ class AnnotationDriver implements MappingDriver
     private $reader;
 
     /**
+     * Symfony container
+     *
+     * @var ContainerInterface
+     **/
+    private $container;
+
+    /**
      * Constructor with required dependencies.
      *
      * @param $reader AnnotationReader Doctrine common annotations reader.
+     * @param $container ContainerInterface Symfony container.
      */
-    public function __construct(AnnotationReader $reader)
+    public function __construct(AnnotationReader $reader, ContainerInterface $container)
     {
         $this->reader = $reader;
+        $this->container = $container;
     }
 
     /**
@@ -70,7 +80,19 @@ class AnnotationDriver implements MappingDriver
             return;
         }
 
-        $metadata->storageName = $entityAnnot->storageName;
+        if (preg_match('#^%(.+)%$#', $entityAnnot->prefix, $matches)) {
+            if (!$this->container->hasParameter($matches[1])) {
+                throw new \Exception(sprintf(
+                    'Invalid prefix argument. The parameter %s is not defined',
+                    $matches[1]
+                ));
+            }
+
+            $entityAnnot->prefix = $this->container->getParameter($matches[1]);
+        }
+
+        $metadata->storageName = $entityAnnot->prefix.$entityAnnot->storageName;
+
         // Evaluate annotations on properties/fields
         foreach ($class->getProperties() as $property) {
             $idAnnot        = $this->reader->getPropertyAnnotation(

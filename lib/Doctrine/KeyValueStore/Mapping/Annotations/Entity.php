@@ -30,4 +30,9 @@ final class Entity
      * @var string
      */
     public $storageName;
+
+    /**
+     * @var string
+     */
+    public $prefix;
 }
