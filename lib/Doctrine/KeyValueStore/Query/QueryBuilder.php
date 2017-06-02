@@ -141,6 +141,18 @@ class QueryBuilder
     }
 
     /**
+     * Execute query and return a result iterator.
+     *
+     * @return ResultIterator
+     */
+    public function getSingleResult()
+    {
+        $results = $this->getResult();
+        return count($results) > 0 ? $results[0] : $results;
+    }
+
+
+    /**
      * Specifies one or more restrictions to the query result.
      * Replaces any previously specified restrictions, if any.
      *

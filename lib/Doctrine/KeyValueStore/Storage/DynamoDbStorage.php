@@ -339,8 +339,6 @@ class DynamoDbStorage implements Storage, QueryBuilderStorage
             $params[sprintf(':%s', $param->getName())] = $value;
         }
 
-        $expression = str_replace(array('((', '))'), array('(', ')'), $expression);
-
         $scanParams = [
             'TableName' => $storageName,
         ];
@@ -379,9 +377,14 @@ class DynamoDbStorage implements Storage, QueryBuilderStorage
             foreach ($expression->getParts() as $part) {
                 list($inner, $innerKeys) = $this->parse($parameters, $storageName, $part);
                 $expressions[] = sprintf('%s', $inner);
+
                 $keys = array_merge($keys, $innerKeys);
             }
-            $compiled .= sprintf('(%s)',implode($expression->getSeparator(), $expressions));
+            $string = '%s';
+            if (count($expressions) > 1) {
+                $string = '(%s)';
+            }
+            $compiled .= sprintf($string, implode($expression->getSeparator(), $expressions));
          } elseif ($expression instanceof Expr\Comparison) {
             $count = count($keys);
             $key = '#k'.$count;
@@ -394,9 +397,16 @@ class DynamoDbStorage implements Storage, QueryBuilderStorage
                 $expression->getRightExpr()
             );
          } elseif ($expression instanceof Expr\Func) {
+            $count = count($keys);
+            $key = '#k'.$count;
             $arguments = '';
+            $key = '';
             foreach ($expression->getArguments() as $argument) {
-                if (is_array($argument)) {
+                if (!$key) {
+                    $key = '#k'.$count;
+                    $keys[$key] = $argument;
+                    $argument = $key;
+                } elseif (is_array($argument)) {
                     $argument = '['.implode(',', $argument).']';
                 }
                 $arguments .= (!$arguments ? $argument : ', '.$argument);
